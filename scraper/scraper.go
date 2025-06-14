@@ -9,9 +9,9 @@ import (
 )
 
 type Preset struct {
-    Title    string
-    URL      string
-    Category string
+	Title    string
+	URL      string
+	Category string
 }
 
 func FetchPresets() ([]Preset, error) {
@@ -56,7 +56,9 @@ func FetchPresets() ([]Preset, error) {
 			if strings.HasPrefix(href, "/") {
 				href = "https://mynoise.net" + href
 			}
-			presets = append(presets, Preset{Title: text, URL: href, Category: category})
+			if category != "" {
+				presets = append(presets, Preset{Title: text, URL: href, Category: category})
+			}
 		}
 	})
 
