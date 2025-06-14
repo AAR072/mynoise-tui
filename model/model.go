@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -15,10 +16,13 @@ import (
 	lipgloss "github.com/charmbracelet/lipgloss"
 )
 
-// preset wraps scraper.Preset and implements list.Item
 type preset struct {
 	data scraper.Preset
 }
+
+// Custom message types
+type playbackStatusMsg string
+type checkPlaybackStatusMsg struct{}
 
 func (p preset) Title() string       { return p.data.Title }
 func (p preset) Description() string { return p.data.Category }
@@ -34,6 +38,8 @@ type Model struct {
 	searchInput textinput.Model
 	categories  []string
 	allPresets  []preset
+
+	status string // Current status ("Loading...", "Playing", etc.)
 }
 
 func NewModel() Model {
@@ -94,77 +100,112 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
 
 	switch m.state {
 	case "list":
-		if m.searchInput.Focused() {
-			switch msg := msg.(type) {
-			case tea.KeyMsg:
-				switch msg.String() {
-				case "esc":
-					m.searchInput.Blur()
-					m.searchInput.Reset()
-					m.updateListItems()
-					return m, nil
-				case "enter", "down", "up":
-					m.searchInput.Blur()
-					m.list, cmd = m.list.Update(msg)
-					return m, cmd
-				}
-			}
-
-			m.searchInput, cmd = m.searchInput.Update(msg)
-			m.updateListItems()
-			return m, cmd
-		}
-
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			switch msg.String() {
-			case "enter":
-				return m.handleItemSelection()
-			case "/":
-				m.searchInput.Focus()
-				return m, nil
-			case "esc":
-				if m.selectedCat != "" {
-					m.selectedCat = ""
-					m.viewMode = "all"
-					m.updateListItems()
-				}
-				return m, nil
-			case "c":
-				m.viewMode = "categories"
-				m.updateListItems()
-				return m, nil
-			case "a":
-				m.viewMode = "all"
-				m.selectedCat = ""
-				m.updateListItems()
-				return m, nil
-			case "q", "ctrl+c":
-				return m, tea.Quit
-			}
-		}
-
-		m.list, cmd = m.list.Update(msg)
-		return m, cmd
-
+		return m.handleListUpdate(msg)
 	case "detail":
-		switch msg := msg.(type) {
-		case tea.KeyMsg:
-			switch msg.String() {
-			case "esc", "q", "backspace":
-				m.state = "list"
-				return m, nil
-			case "ctrl+c":
-				return m, tea.Quit
-			}
-		}
+		return m.handleDetailUpdate(msg)
 	}
 
 	return m, nil
+}
+
+func (m *Model) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	if m.searchInput.Focused() {
+		switch msg := msg.(type) {
+		case playbackStatusMsg:
+			m.status = string(msg)
+			return m, nil
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "esc":
+				m.searchInput.Blur()
+				m.searchInput.Reset()
+				m.updateListItems()
+				return m, nil
+			case "enter", "down", "up":
+				m.searchInput.Blur()
+				m.list, cmd = m.list.Update(msg)
+				return m, cmd
+			}
+		}
+
+		m.searchInput, cmd = m.searchInput.Update(msg)
+		m.updateListItems()
+		return m, cmd
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "enter":
+			return m.handleItemSelection()
+		case "/":
+			m.searchInput.Focus()
+			return m, nil
+		case "esc":
+			if m.selectedCat != "" {
+				m.selectedCat = ""
+				m.viewMode = "all"
+				m.updateListItems()
+			}
+			return m, nil
+		case "c":
+			m.viewMode = "categories"
+			m.updateListItems()
+			return m, nil
+		case "a":
+			m.viewMode = "all"
+			m.selectedCat = ""
+			m.updateListItems()
+			return m, nil
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
+	}
+
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "q", "backspace":
+			m.state = "list"
+			return m, nil
+		case "ctrl+c":
+			return m, tea.Quit
+		}
+
+	case playbackStatusMsg:
+		m.status = string(msg)
+		// Continue checking status until we get "Playing"
+		if m.status != "Playing" {
+			return m, tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
+				return checkPlaybackStatusMsg{}
+			})
+		}
+		return m, nil
+
+	case checkPlaybackStatusMsg:
+		return m, m.checkPlaybackStatus()
+	}
+
+	return m, nil
+}
+
+func (m *Model) checkPlaybackStatus() tea.Cmd {
+	return func() tea.Msg {
+		if browser.IsLoading() {
+			return playbackStatusMsg("Loading...")
+		}
+		return playbackStatusMsg("Playing")
+	}
 }
 
 func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
@@ -178,12 +219,21 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 		if selected, ok := m.list.SelectedItem().(preset); ok {
 			m.detailItem = selected
 			m.state = "detail"
+			m.status = "Loading..."
 
-			// Launch navigation async so UI doesn't freeze
-			go browser.NavigateTo(selected.data.URL)
+			return m, playPresetCmd(selected)
 		}
 	}
 	return m, nil
+}
+
+func playPresetCmd(p preset) tea.Cmd {
+	return func() tea.Msg {
+		if err := browser.NavigateTo(p.data.URL); err != nil {
+			return playbackStatusMsg("Error: " + err.Error())
+		}
+		return checkPlaybackStatusMsg{}
+	}
 }
 
 func (m *Model) filterPresets() []preset {
@@ -265,10 +315,11 @@ func (m Model) View() string {
 		return lipgloss.NewStyle().
 			Margin(1, 2).
 			Render(fmt.Sprintf(
-				"Title: %s\nCategory: %s\nURL: %s\n\nPress q, ESC or backspace to go back.",
+				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\n\nPress q, ESC or backspace to go back.",
 				lipgloss.NewStyle().Bold(true).Render(d.data.Title),
 				lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.data.Category),
 				lipgloss.NewStyle().Faint(true).Render(d.data.URL),
+				lipgloss.NewStyle().Render(m.status),
 			))
 	}
 	return ""

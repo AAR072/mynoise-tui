@@ -13,7 +13,10 @@ var (
 	allocCancel context.CancelFunc
 	ctx         context.Context
 	ctxCancel   context.CancelFunc
-	navMutex    sync.Mutex // Add a mutex for thread-safe navigation
+	navMutex    sync.Mutex
+	statusMutex sync.Mutex
+	lastStatus  bool
+	lastCheck   time.Time
 )
 
 func InitBrowser() error {
@@ -23,19 +26,13 @@ func InitBrowser() error {
 		chromedp.Flag("autoplay-policy", "no-user-gesture-required"),
 		chromedp.Flag("mute-audio", false),
 		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("remote-allow-origins", "*"), // Important for handling origins
+		chromedp.Flag("remote-allow-origins", "*"),
 	)
 
 	allocCtx, allocCancel = chromedp.NewExecAllocator(context.Background(), opts...)
 	ctx, ctxCancel = chromedp.NewContext(allocCtx)
 
-	// Start browser with an empty page
-	err := chromedp.Run(ctx, chromedp.Navigate("about:blank"))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return chromedp.Run(ctx, chromedp.Navigate("about:blank"))
 }
 
 func ShutdownBrowser() {
@@ -51,11 +48,39 @@ func NavigateTo(url string) error {
 	navMutex.Lock()
 	defer navMutex.Unlock()
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second) // Increased timeout
+	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	return chromedp.Run(ctxTimeout,
 		chromedp.Navigate(url),
-		chromedp.WaitReady(`body`, chromedp.ByQuery), // Use WaitReady instead of WaitVisible
+		chromedp.WaitReady(`body`, chromedp.ByQuery),
 	)
+}
+
+func IsLoading() bool {
+	statusMutex.Lock()
+	defer statusMutex.Unlock()
+
+	// Rate limit checks to max once per 500ms
+	if time.Since(lastCheck) < 500*time.Millisecond {
+		return false
+	}
+
+	var status bool
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	chromedp.Run(ctx,
+		chromedp.Evaluate(`
+			(() => {
+				const el = document.querySelector("div.msg#msg");
+				if (!el) return "absent";
+				return el.textContent == "Now Playing...";
+			})()
+		`, &status),
+	)
+
+	lastStatus = status
+	lastCheck = time.Now()
+	return !status
 }
