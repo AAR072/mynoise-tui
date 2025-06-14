@@ -1,18 +1,36 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/aar072/mynoise-tui/browser"
 	"github.com/aar072/mynoise-tui/model"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-	m := model.NewModel()
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	if err := p.Start(); err != nil {
-		fmt.Println("Error running program:", err)
-		os.Exit(1)
+	// Setup browser
+	err := browser.InitBrowser()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer browser.ShutdownBrowser() // Ensure browser closes on exit
+
+	// Handle OS signals for proper cleanup
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		browser.ShutdownBrowser()
+		os.Exit(0)
+	}()
+
+	// Start TUI
+	p := tea.NewProgram(model.NewModel(), tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		log.Fatal(err)
 	}
 }
