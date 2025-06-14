@@ -5,10 +5,11 @@ import (
 	"os"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/aar072/mynoise-tui/browser"
 	"github.com/aar072/mynoise-tui/scraper"
 
 	lipgloss "github.com/charmbracelet/lipgloss"
@@ -24,9 +25,9 @@ func (p preset) Description() string { return p.data.Category }
 func (p preset) FilterValue() string { return p.data.Title }
 
 type Model struct {
-	list        list.Model
-	state       string // "list" or "detail"
-	detailItem  preset
+	list       list.Model
+	state      string // "list" or "detail"
+	detailItem preset
 
 	viewMode    string // "all", "categories", "filtered"
 	selectedCat string
@@ -177,6 +178,9 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 		if selected, ok := m.list.SelectedItem().(preset); ok {
 			m.detailItem = selected
 			m.state = "detail"
+
+			// Launch navigation async so UI doesn't freeze
+			go browser.NavigateTo(selected.data.URL)
 		}
 	}
 	return m, nil
@@ -241,7 +245,7 @@ func (m Model) View() string {
 		if m.selectedCat != "" {
 			header += "\n" + lipgloss.NewStyle().
 				Foreground(lipgloss.Color("205")).
-				Render("Category: " + m.selectedCat)
+				Render("Category: "+m.selectedCat)
 		}
 
 		if m.searchInput.Focused() {
