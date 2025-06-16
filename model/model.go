@@ -5,11 +5,13 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/aar072/mynoise-tui/prefs"
 	"github.com/aar072/mynoise-tui/scraper"
 )
 
@@ -35,8 +37,33 @@ type Model struct {
 	status string // Current status ("Loading...", "Playing", etc.)
 }
 
-func NewModel() Model {
+func NewModel(userPrefs prefs.UserPrefs) Model {
+	done := make(chan struct{})
+	go func() {
+		spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		i := 0
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				fmt.Printf("\r%s Loading Sounds...", spinner[i%len(spinner)])
+				i++
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	}()
 	presetsFromWeb, err := scraper.FetchPresets()
+	userPrefs = prefs.UpdatePreferences(userPrefs, presetsFromWeb)
+	for url, meta := range userPrefs {
+		fmt.Printf("URL: %s\n", url)
+		fmt.Printf("  OpenCount: %d\n", meta.OpenCount)
+		fmt.Printf("  IsFavorite: %v\n", meta.IsFavorite)
+	}
+	prefs.SavePreferences(userPrefs)
+
+	// Now we update the user preferences
+	close(done)
 	if err != nil {
 		fmt.Println("Error fetching presets:", err)
 		os.Exit(1)

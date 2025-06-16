@@ -8,6 +8,7 @@ import (
 
 	"github.com/aar072/mynoise-tui/browser"
 	"github.com/aar072/mynoise-tui/model"
+	"github.com/aar072/mynoise-tui/prefs"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -29,7 +30,10 @@ func main() {
 	}()
 
 	// Start TUI
-	p := tea.NewProgram(model.NewModel(), tea.WithAltScreen())
+	var userPrefs prefs.UserPrefs
+	userPrefs, _ = prefs.InitConfig()
+	print(len(userPrefs))
+	p := tea.NewProgram(model.NewModel(userPrefs), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
