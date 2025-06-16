@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aar072/mynoise-tui/player"
+	"github.com/aar072/mynoise-tui/prefs"
+	"github.com/aar072/mynoise-tui/scraper"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/aar072/mynoise-tui/prefs"
-	"github.com/aar072/mynoise-tui/scraper"
 )
 
 type preset struct {
@@ -25,7 +25,7 @@ func (p preset) FilterValue() string { return p.data.Title }
 
 type Model struct {
 	list       list.Model
-	state      string // "list" or "detail"
+	state      string // "list", "detail", or eventually "player"
 	detailItem preset
 
 	viewMode    string // "all", "categories", "filtered"
@@ -100,6 +100,7 @@ func NewModel(userPrefs prefs.UserPrefs) Model {
 		categories:  categories,
 		allPresets:  allPresets,
 		searchInput: ti,
+		status:      "",
 	}
 
 	m.updateListItems()
@@ -111,7 +112,23 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Handle player-generated messages first
+	switch msg := msg.(type) {
+	case player.PlaybackStartedMsg:
+		m.status = "Playing: " + msg.PresetName
+		return m, nil
+	case player.PlaybackStoppedMsg:
+		m.status = "Stopped"
+		return m, nil
+	case player.VolumeChangedMsg:
+		m.status = fmt.Sprintf("Volume set to %.2f", msg.Volume)
+		return m, nil
+	case player.PresenceChangedMsg:
+		m.status = fmt.Sprintf("Presence set to %.2f", msg.Presence)
+		return m, nil
+	}
 
+	// Fallback to UI state handlers
 	switch m.state {
 	case "list":
 		return m.handleListUpdate(msg)
@@ -134,8 +151,8 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			m.detailItem = selected
 			m.state = "detail"
 			m.status = "Loading..."
-
-			return m, playPresetCmd(selected)
+			// Delegate playback to the player package
+			return m, player.PlayPresetCmd(selected.data)
 		}
 	}
 	return m, nil
