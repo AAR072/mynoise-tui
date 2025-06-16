@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -61,6 +62,13 @@ func NewModel() Model {
 	ti.Prompt = "> "
 	ti.CharLimit = 50
 	ti.Width = 30
+
+	slices.SortFunc(allPresets, func(a, b preset) int {
+		return strings.Compare(a.Title(), b.Title())
+	})
+	slices.SortFunc(categories, func(a, b string) int {
+		return strings.Compare(a, b)
+	})
 
 	m := Model{
 		list:        l,
