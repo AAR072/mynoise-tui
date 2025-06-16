@@ -53,16 +53,12 @@ func NewModel(userPrefs prefs.UserPrefs) Model {
 			}
 		}
 	}()
-	presetsFromWeb, err := scraper.FetchPresets()
-	userPrefs = prefs.UpdatePreferences(userPrefs, presetsFromWeb)
-	for url, meta := range userPrefs {
-		fmt.Printf("URL: %s\n", url)
-		fmt.Printf("  OpenCount: %d\n", meta.OpenCount)
-		fmt.Printf("  IsFavorite: %v\n", meta.IsFavorite)
-	}
-	prefs.SavePreferences(userPrefs)
 
 	// Now we update the user preferences
+	presetsFromWeb, err := scraper.FetchPresets()
+	userPrefs = prefs.UpdatePreferences(userPrefs, presetsFromWeb)
+	prefs.SavePreferences(userPrefs)
+
 	close(done)
 	if err != nil {
 		fmt.Println("Error fetching presets:", err)

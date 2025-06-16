@@ -8,8 +8,7 @@ import (
 )
 
 func UpdatePreferences(userPrefs UserPrefs, allPresets []scraper.Preset) UserPrefs {
-	for i, presetElement := range allPresets {
-		print(i)
+	for _, presetElement := range allPresets {
 		if _, exists := userPrefs[presetElement.URL]; !exists {
 			userPrefs[presetElement.URL] = &PresetMeta{
 				OpenCount:  0,
