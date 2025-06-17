@@ -5,6 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+
+	"github.com/aar072/mynoise-tui/classes"
+	"github.com/aar072/mynoise-tui/store"
 )
 
 // getConfigPath returns the full path to the JSON config file storing user prefs.
@@ -19,7 +22,10 @@ func getConfigPath() (string, error) {
 
 // InitConfig ensures the user prefs JSON file exists, loading it if present,
 // or creating an empty one otherwise. Returns the loaded preferences map.
-func InitConfig() (UserPrefs, error) {
+func InitConfig() (classes.UserPrefs, error) {
+	if store.UserPrefs == nil {
+		store.UserPrefs = make(map[string]*classes.PresetMeta)
+	}
 	path, err := getConfigPath()
 	if err != nil {
 		return nil, err
@@ -33,7 +39,7 @@ func InitConfig() (UserPrefs, error) {
 			return nil, err
 		}
 		// Initialize an empty prefs map.
-		emptyPrefs := UserPrefs{}
+		emptyPrefs := classes.UserPrefs{}
 		// Marshal empty prefs to pretty JSON.
 		data, err := json.MarshalIndent(emptyPrefs, "", "  ")
 		if err != nil {
@@ -54,7 +60,7 @@ func InitConfig() (UserPrefs, error) {
 		return nil, err
 	}
 
-	var prefs UserPrefs
+	var prefs classes.UserPrefs
 	// Unmarshal JSON data into the prefs map.
 	if err := json.Unmarshal(data, &prefs); err != nil {
 		return nil, err

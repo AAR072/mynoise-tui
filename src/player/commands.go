@@ -1,16 +1,16 @@
 package player
 
 import (
-	"github.com/aar072/mynoise-tui/scraper"
+	"github.com/aar072/mynoise-tui/classes"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// PlayPresetCmd plays the given preset (with spinner) and then emits PlaybackStartedMsg.
-func PlayPresetCmd(preset scraper.Preset) tea.Cmd {
+// PlayPresetCmd plays the given preset and then emits PlaybackStartedMsg.
+func PlayPresetCmd(preset classes.Preset) tea.Cmd {
 	return func() tea.Msg {
 		DefaultPlayer.PlayPreset(preset)
 		if DefaultPlayer.Playing {
-			return PlaybackStartedMsg{PresetName: preset.Title}
+			return PlaybackStartedMsg{PresetName: preset.Data.Title}
 		}
 		// if not playing (error), emit stopped
 		return PlaybackStoppedMsg{}

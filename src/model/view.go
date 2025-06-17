@@ -38,9 +38,9 @@ func (m Model) View() string {
 			Margin(1, 2).
 			Render(fmt.Sprintf(
 				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\n\nPress q, ESC or backspace to go back.",
-				lipgloss.NewStyle().Bold(true).Render(d.data.Title),
-				lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.data.Category),
-				lipgloss.NewStyle().Faint(true).Render(d.data.URL),
+				lipgloss.NewStyle().Bold(true).Render(d.Data.Title),
+				lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.Data.Category),
+				lipgloss.NewStyle().Faint(true).Render(d.Data.URL),
 				lipgloss.NewStyle().Render(m.status),
 			))
 	}

@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"github.com/aar072/mynoise-tui/browser"
-	"github.com/aar072/mynoise-tui/scraper"
+	"github.com/aar072/mynoise-tui/classes"
 )
 
 // Player holds the playback state and slider values.
 type Player struct {
-	CurrentPreset scraper.Preset
+	CurrentPreset classes.Preset
 	Volume        float64
 	Presence      float64
 	Playing       bool
@@ -24,10 +24,13 @@ func New() *Player {
 	}
 }
 
-// PlayPreset begins playback of the given preset, showing a spinner
-// exactly as before. It blocks until browser.Play returns.
-func (p *Player) PlayPreset(preset scraper.Preset) {
-	err := browser.NavigateTo(preset.URL)
+// PlayPreset begins playback of the given preset.
+// It blocks until `browser.Play` returns.
+func (p *Player) PlayPreset(preset classes.Preset) {
+	// We open the browser
+	err := browser.NavigateTo(preset.Data.URL)
+	// We increment the opencount
+	preset.Metadata.OpenCount++
 
 	if err != nil {
 		fmt.Println("Error playing preset:", err)

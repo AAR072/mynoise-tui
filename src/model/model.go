@@ -7,37 +7,31 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aar072/mynoise-tui/classes"
 	"github.com/aar072/mynoise-tui/player"
 	"github.com/aar072/mynoise-tui/prefs"
 	"github.com/aar072/mynoise-tui/scraper"
+	"github.com/aar072/mynoise-tui/store"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type preset struct {
-	data scraper.Preset
-}
-
-func (p preset) Title() string       { return p.data.Title }
-func (p preset) Description() string { return p.data.Category }
-func (p preset) FilterValue() string { return p.data.Title }
-
 type Model struct {
 	list       list.Model
 	state      string // "list", "detail", or eventually "player"
-	detailItem preset
+	detailItem classes.Preset
 
 	viewMode    string // "all", "categories", "filtered"
 	selectedCat string
 	searchInput textinput.Model
 	categories  []string
-	allPresets  []preset
+	allPresets  []classes.Preset
 
 	status string // Current status ("Loading...", "Playing", etc.)
 }
 
-func NewModel(userPrefs prefs.UserPrefs) Model {
+func NewModel() Model {
 	done := make(chan struct{})
 	go func() {
 		spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -54,22 +48,23 @@ func NewModel(userPrefs prefs.UserPrefs) Model {
 		}
 	}()
 
-	// Now we update the user preferences
 	presetsFromWeb, err := scraper.FetchPresets()
-	userPrefs = prefs.UpdatePreferences(userPrefs, presetsFromWeb)
-	prefs.SavePreferences(userPrefs)
+
+	var items []list.Item
+	store.AllPresets = make([]classes.Preset, len(presetsFromWeb))
+	for i, p := range presetsFromWeb {
+		store.AllPresets[i] = classes.Preset{Data: p}
+		items = append(items, store.AllPresets[i])
+	}
+
+	// Now we update the user preferences
+	prefs.UpdatePreferences()
+	prefs.SavePreferences()
 
 	close(done)
 	if err != nil {
 		fmt.Println("Error fetching presets:", err)
 		os.Exit(1)
-	}
-
-	var items []list.Item
-	allPresets := make([]preset, len(presetsFromWeb))
-	for i, p := range presetsFromWeb {
-		allPresets[i] = preset{data: p}
-		items = append(items, allPresets[i])
 	}
 
 	categories := uniqueCategories(presetsFromWeb)
@@ -86,7 +81,7 @@ func NewModel(userPrefs prefs.UserPrefs) Model {
 	ti.CharLimit = 50
 	ti.Width = 30
 
-	slices.SortFunc(allPresets, func(a, b preset) int {
+	slices.SortFunc(store.AllPresets, func(a, b classes.Preset) int {
 		return strings.Compare(a.Title(), b.Title())
 	})
 	slices.SortFunc(categories, func(a, b string) int {
@@ -98,7 +93,7 @@ func NewModel(userPrefs prefs.UserPrefs) Model {
 		state:       "list",
 		viewMode:    "all",
 		categories:  categories,
-		allPresets:  allPresets,
+		allPresets:  store.AllPresets,
 		searchInput: ti,
 		status:      "",
 	}
@@ -147,12 +142,11 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			m.updateListItems()
 		}
 	} else {
-		if selected, ok := m.list.SelectedItem().(preset); ok {
+		if selected, ok := m.list.SelectedItem().(classes.Preset); ok {
 			m.detailItem = selected
 			m.state = "detail"
 			m.status = "Loading..."
-			// Delegate playback to the player package
-			return m, player.PlayPresetCmd(selected.data)
+			return m, player.PlayPresetCmd(selected)
 		}
 	}
 	return m, nil

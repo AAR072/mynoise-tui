@@ -6,15 +6,10 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/aar072/mynoise-tui/classes"
 )
 
-type Preset struct {
-	Title    string
-	URL      string
-	Category string
-}
-
-func FetchPresets() ([]Preset, error) {
+func FetchPresets() ([]classes.ScraperPreset, error) {
 	res, err := http.Get("https://mynoise.net/noiseMachines.php")
 	if err != nil {
 		return nil, err
@@ -30,7 +25,7 @@ func FetchPresets() ([]Preset, error) {
 		return nil, err
 	}
 
-	var presets []Preset
+	var presets []classes.ScraperPreset
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		onmouseover, exists := s.Attr("onmouseover")
 		if !exists || !strings.HasPrefix(onmouseover, "play(") {
@@ -57,7 +52,7 @@ func FetchPresets() ([]Preset, error) {
 				href = "https://mynoise.net" + href
 			}
 			if category != "" {
-				presets = append(presets, Preset{Title: text, URL: href, Category: category})
+				presets = append(presets, classes.ScraperPreset{Title: text, URL: href, Category: category})
 			}
 		}
 	})
