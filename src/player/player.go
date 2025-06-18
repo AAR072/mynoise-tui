@@ -5,6 +5,7 @@ import (
 
 	"github.com/aar072/mynoise-tui/browser"
 	"github.com/aar072/mynoise-tui/classes"
+	"github.com/aar072/mynoise-tui/store"
 )
 
 // Player holds the playback state and slider values.
@@ -30,7 +31,8 @@ func (p *Player) PlayPreset(preset classes.Preset) {
 	// We open the browser
 	err := browser.NavigateTo(preset.Data.URL)
 	// We increment the opencount
-	preset.Metadata.OpenCount++
+	store.AllPresets[preset.Data.URL].Metadata.OpenCount++
+	store.UserPrefs[preset.Data.URL].OpenCount++
 
 	if err != nil {
 		fmt.Println("Error playing preset:", err)

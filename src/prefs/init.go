@@ -22,13 +22,13 @@ func getConfigPath() (string, error) {
 
 // InitConfig ensures the user prefs JSON file exists, loading it if present,
 // or creating an empty one otherwise. Returns the loaded preferences map.
-func InitConfig() (classes.UserPrefs, error) {
+func InitConfig() error {
 	if store.UserPrefs == nil {
 		store.UserPrefs = make(map[string]*classes.PresetMeta)
 	}
 	path, err := getConfigPath()
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	// Check if the prefs file exists.
@@ -36,35 +36,35 @@ func InitConfig() (classes.UserPrefs, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		// Create the directory structure if it doesn't exist.
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return nil, err
+			return nil
 		}
 		// Initialize an empty prefs map.
 		emptyPrefs := classes.UserPrefs{}
 		// Marshal empty prefs to pretty JSON.
 		data, err := json.MarshalIndent(emptyPrefs, "", "  ")
 		if err != nil {
-			return nil, err
+			return nil
 		}
 		// Write the empty JSON file to disk.
 		if err := os.WriteFile(path, data, 0644); err != nil {
-			return nil, err
+			return nil
 		}
 	} else if err != nil {
 		// Some other error accessing the file.
-		return nil, err
+		return nil
 	}
 
 	// Read the JSON prefs file.
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	var prefs classes.UserPrefs
 	// Unmarshal JSON data into the prefs map.
 	if err := json.Unmarshal(data, &prefs); err != nil {
-		return nil, err
+		return nil
 	}
-
-	return prefs, nil
+	store.UserPrefs = prefs
+	return nil
 }

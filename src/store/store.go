@@ -5,6 +5,6 @@ import (
 )
 
 var (
-	AllPresets []classes.Preset
+	AllPresets map[string]*classes.Preset
 	UserPrefs  classes.UserPrefs
 )

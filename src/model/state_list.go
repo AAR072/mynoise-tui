@@ -1,6 +1,8 @@
 package model
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func (m *Model) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -53,8 +55,6 @@ func (m *Model) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selectedCat = ""
 			m.updateListItems()
 			return m, nil
-		case "q", "ctrl+c":
-			return m, tea.Quit
 		}
 	}
 

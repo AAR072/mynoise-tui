@@ -10,19 +10,18 @@ import (
 
 func UpdatePreferences() {
 	for _, presetElement := range store.AllPresets {
+		// If the preset does not exist
 		if _, exists := store.UserPrefs[presetElement.Data.URL]; !exists {
 			store.UserPrefs[presetElement.Data.URL] = &classes.PresetMeta{
 				OpenCount:  0,
 				IsFavorite: false,
 			}
-		} else {
-			// We need to import the old preferences
-			presetElement.Metadata = *store.UserPrefs[presetElement.Data.URL]
 		}
+		store.AllPresets[presetElement.Data.URL].Metadata = *store.UserPrefs[presetElement.Data.URL]
 	}
 }
 
-// SavePreferences saves the given UserPrefs map to the JSON config file.
+// SavePreferences saves the UserPrefs map to the JSON config file.
 func SavePreferences() error {
 	path, err := getConfigPath()
 	if err != nil {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/aar072/mynoise-tui/classes"
@@ -23,8 +24,13 @@ func (m *Model) filterPresets() []classes.Preset {
 				continue
 			}
 		}
-		filtered = append(filtered, p)
+		filtered = append(filtered, *p)
 	}
+
+	slices.SortFunc(filtered, func(a, b classes.Preset) int {
+		return strings.Compare(a.Data.Title, b.Data.Title)
+	})
+
 	return filtered
 }
 func uniqueCategories(presets []classes.ScraperPreset) []string {

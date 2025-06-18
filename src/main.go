@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/aar072/mynoise-tui/browser"
-	"github.com/aar072/mynoise-tui/classes"
 	"github.com/aar072/mynoise-tui/model"
 	"github.com/aar072/mynoise-tui/prefs"
 	tea "github.com/charmbracelet/bubbletea"
@@ -31,11 +30,10 @@ func main() {
 	}()
 
 	// Start TUI
-	var userPrefs classes.UserPrefs
-	userPrefs, _ = prefs.InitConfig()
-	print(len(userPrefs))
+	_ = prefs.InitConfig()
 	p := tea.NewProgram(model.NewModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
+	prefs.SavePreferences()
 }

@@ -2,7 +2,9 @@ package model
 
 import (
 	"fmt"
+	"strconv"
 
+	"github.com/aar072/mynoise-tui/store"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -37,11 +39,12 @@ func (m Model) View() string {
 		return lipgloss.NewStyle().
 			Margin(1, 2).
 			Render(fmt.Sprintf(
-				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\n\nPress q, ESC or backspace to go back.",
+				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\nOpen Count: %s\n\nPress q, ESC or backspace to go back.",
 				lipgloss.NewStyle().Bold(true).Render(d.Data.Title),
 				lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.Data.Category),
 				lipgloss.NewStyle().Faint(true).Render(d.Data.URL),
 				lipgloss.NewStyle().Render(m.status),
+				lipgloss.NewStyle().Render(strconv.Itoa(store.AllPresets[d.Data.URL].Metadata.OpenCount)),
 			))
 	}
 	return ""

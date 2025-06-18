@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -26,7 +25,7 @@ type Model struct {
 	selectedCat string
 	searchInput textinput.Model
 	categories  []string
-	allPresets  []classes.Preset
+	allPresets  map[string]*classes.Preset
 
 	status string // Current status ("Loading...", "Playing", etc.)
 }
@@ -51,10 +50,14 @@ func NewModel() Model {
 	presetsFromWeb, err := scraper.FetchPresets()
 
 	var items []list.Item
-	store.AllPresets = make([]classes.Preset, len(presetsFromWeb))
-	for i, p := range presetsFromWeb {
-		store.AllPresets[i] = classes.Preset{Data: p}
-		items = append(items, store.AllPresets[i])
+	store.AllPresets = make(map[string]*classes.Preset)
+	for _, p := range presetsFromWeb {
+		key := p.URL // or whatever unique string key exists
+
+		presetCopy := classes.Preset{Data: p}
+		store.AllPresets[key] = &presetCopy // store pointer to value
+
+		items = append(items, presetCopy) // append value to slice
 	}
 
 	// Now we update the user preferences
@@ -80,13 +83,6 @@ func NewModel() Model {
 	ti.Prompt = "> "
 	ti.CharLimit = 50
 	ti.Width = 30
-
-	slices.SortFunc(store.AllPresets, func(a, b classes.Preset) int {
-		return strings.Compare(a.Title(), b.Title())
-	})
-	slices.SortFunc(categories, func(a, b string) int {
-		return strings.Compare(a, b)
-	})
 
 	m := Model{
 		list:        l,
