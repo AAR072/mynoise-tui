@@ -41,3 +41,10 @@ func SavePreferences() error {
 
 	return nil
 }
+
+func FavouritePreset(selectedPreset classes.Preset) error {
+	// Flip the favourite status of the preset
+	store.UserPrefs[selectedPreset.Data.URL].IsFavorite = !selectedPreset.Metadata.IsFavorite
+	store.AllPresets[selectedPreset.Data.URL].Metadata.IsFavorite = !selectedPreset.Metadata.IsFavorite
+	return nil
+}

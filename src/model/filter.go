@@ -28,9 +28,20 @@ func (m *Model) filterPresets() []classes.Preset {
 	}
 
 	slices.SortFunc(filtered, func(a, b classes.Preset) int {
+		aFav := a.Metadata.IsFavorite
+		bFav := b.Metadata.IsFavorite
+
+		// Favourites go first
+		if aFav && !bFav {
+			return -1
+		}
+		if !aFav && bFav {
+			return 1
+		}
+
+		// Otherwise, sort alphabetically by title
 		return strings.Compare(a.Data.Title, b.Data.Title)
 	})
-
 	return filtered
 }
 func uniqueCategories(presets []classes.ScraperPreset) []string {

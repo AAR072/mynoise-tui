@@ -39,12 +39,13 @@ func (m Model) View() string {
 		return lipgloss.NewStyle().
 			Margin(1, 2).
 			Render(fmt.Sprintf(
-				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\nOpen Count: %s\n\nPress q, ESC or backspace to go back.",
+				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\nListen Count: %s\nFavourited: %s\n\nPress q, ESC or backspace to go back • f: favourite",
 				lipgloss.NewStyle().Bold(true).Render(d.Data.Title),
 				lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.Data.Category),
 				lipgloss.NewStyle().Faint(true).Render(d.Data.URL),
 				lipgloss.NewStyle().Render(m.status),
 				lipgloss.NewStyle().Render(strconv.Itoa(store.AllPresets[d.Data.URL].Metadata.OpenCount)),
+				lipgloss.NewStyle().Render(strconv.FormatBool(store.AllPresets[d.Data.URL].Metadata.IsFavorite)),
 			))
 	}
 	return ""
