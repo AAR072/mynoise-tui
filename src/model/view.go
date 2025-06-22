@@ -36,17 +36,20 @@ func (m Model) View() string {
 
 	case "detail":
 		d := m.detailItem
+		detailText := fmt.Sprintf(
+			"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\nListen Count: %s\nFavourited: %s\n\nPress q, ESC or backspace to go back • f: favourite\n\n%s",
+			lipgloss.NewStyle().Bold(true).Render(d.Data.Title),
+			lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.Data.Category),
+			lipgloss.NewStyle().Faint(true).Render(d.Data.URL),
+			lipgloss.NewStyle().Render(m.status),
+			lipgloss.NewStyle().Render(strconv.Itoa(store.AllPresets[d.Data.URL].Metadata.OpenCount)),
+			lipgloss.NewStyle().Render(strconv.FormatBool(store.AllPresets[d.Data.URL].Metadata.IsFavorite)),
+			m.soundList.View(),
+		)
+
 		return lipgloss.NewStyle().
 			Margin(1, 2).
-			Render(fmt.Sprintf(
-				"Title: %s\nCategory: %s\nURL: %s\nStatus: %s\nListen Count: %s\nFavourited: %s\n\nPress q, ESC or backspace to go back • f: favourite",
-				lipgloss.NewStyle().Bold(true).Render(d.Data.Title),
-				lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render(d.Data.Category),
-				lipgloss.NewStyle().Faint(true).Render(d.Data.URL),
-				lipgloss.NewStyle().Render(m.status),
-				lipgloss.NewStyle().Render(strconv.Itoa(store.AllPresets[d.Data.URL].Metadata.OpenCount)),
-				lipgloss.NewStyle().Render(strconv.FormatBool(store.AllPresets[d.Data.URL].Metadata.IsFavorite)),
-			))
+			Render(detailText)
 	}
 	return ""
 }

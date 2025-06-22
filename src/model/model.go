@@ -3,10 +3,13 @@ package model
 import (
 	"fmt"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aar072/mynoise-tui/classes"
+	"github.com/aar072/mynoise-tui/logger"
 	"github.com/aar072/mynoise-tui/player"
 	"github.com/aar072/mynoise-tui/prefs"
 	"github.com/aar072/mynoise-tui/scraper"
@@ -17,10 +20,12 @@ import (
 )
 
 type Model struct {
-	list       list.Model
-	state      string // "list", "detail", or eventually "player"
-	detailItem classes.Preset
-	allSounds  []classes.Sound
+	list          list.Model
+	state         string // "list", "detail", or eventually "player"
+	detailItem    classes.Preset
+	allSounds     []classes.Sound
+	selectedSound *classes.Sound
+	soundList     list.Model
 
 	viewMode    string // "all", "categories", "filtered"
 	selectedCat string
@@ -86,13 +91,14 @@ func NewModel() Model {
 	ti.Width = 30
 
 	m := Model{
-		list:        l,
-		state:       "list",
-		viewMode:    "all",
-		categories:  categories,
-		allPresets:  store.AllPresets,
-		searchInput: ti,
-		status:      "",
+		list:          l,
+		state:         "list",
+		viewMode:      "all",
+		categories:    categories,
+		allPresets:    store.AllPresets,
+		selectedSound: &classes.DefaultSound,
+		searchInput:   ti,
+		status:        "",
 	}
 
 	m.updateListItems()
@@ -143,8 +149,21 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			m.detailItem = selected
 			m.state = "detail"
 			m.status = "Loading..."
+
 			// We now need to set the presets to something
 			m.allSounds = scraper.FetchPresetOnclicks(selected.Data.URL)
+			slices.SortFunc(m.allSounds, func(a, b classes.Sound) int {
+				return strings.Compare(a.Name, b.Name)
+			})
+			items := make([]list.Item, len(m.allSounds))
+			for i, s := range m.allSounds {
+				items[i] = classes.SoundItem{s}
+			}
+			logger.Info(strconv.Itoa(len(items)))
+			m.soundList = list.New(items, list.NewDefaultDelegate(), 40, 20)
+			m.soundList.Title = "Presets"
+			m.soundList.SetShowHelp(false)
+
 			return m, player.PlayPresetCmd(selected)
 		}
 	}
