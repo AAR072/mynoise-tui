@@ -14,6 +14,6 @@ func (s SoundItem) Description() string { return "" }
 func (s SoundItem) FilterValue() string { return s.Name }
 
 var DefaultSound = Sound{
-	Name:    "Default Sound",
+	Name:    "Default",
 	Sliders: [10]float64{0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5},
 }

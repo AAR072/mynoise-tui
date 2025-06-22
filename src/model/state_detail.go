@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/aar072/mynoise-tui/classes"
+	"github.com/aar072/mynoise-tui/player"
 	"github.com/aar072/mynoise-tui/prefs"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -18,7 +19,7 @@ func (m *Model) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "f":
-			prefs.FavouritePreset(m.detailItem)
+			prefs.FavouritePreset(&m.detailItem)
 			presets := m.filterPresets()
 			items := make([]list.Item, len(presets))
 			for i, p := range presets {
@@ -29,10 +30,9 @@ func (m *Model) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if selected, ok := m.soundList.SelectedItem().(classes.SoundItem); ok {
-				m.status = "Selected: " + selected.Name
+				m.status = "Playing: " + selected.Name
 
-				// Optional: Start playback
-				// player.Start(selected.Name, selected.Sliders[:]) or whatever your API is
+				player.DefaultPlayer.PlaySound(selected.Name, selected.Sliders)
 			}
 			return m, nil
 

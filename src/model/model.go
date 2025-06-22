@@ -146,7 +146,6 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 		}
 	} else {
 		if selected, ok := m.list.SelectedItem().(classes.Preset); ok {
-			m.detailItem = selected
 			m.state = "detail"
 			m.status = "Loading..."
 
@@ -155,6 +154,7 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			slices.SortFunc(m.allSounds, func(a, b classes.Sound) int {
 				return strings.Compare(a.Name, b.Name)
 			})
+			m.allSounds = append([]classes.Sound{classes.DefaultSound}, m.allSounds...)
 			items := make([]list.Item, len(m.allSounds))
 			for i, s := range m.allSounds {
 				items[i] = classes.SoundItem{s}
@@ -164,7 +164,12 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			m.soundList.Title = "Presets"
 			m.soundList.SetShowHelp(false)
 
-			return m, player.PlayPresetCmd(selected)
+			// If we are already playing this, we do not want to replay it
+			if m.detailItem.Data.Title != selected.Title() {
+				m.detailItem = selected
+				return m, player.PlayPresetCmd(selected)
+			}
+			return m, nil
 		}
 	}
 	return m, nil

@@ -84,3 +84,16 @@ func IsLoading() bool {
 	lastCheck = time.Now()
 	return !status
 }
+
+func CallJSFunction(jsCode string) error {
+	navMutex.Lock()
+	defer navMutex.Unlock()
+
+	ctxTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	var result any
+	return chromedp.Run(ctxTimeout,
+		chromedp.Evaluate(jsCode, &result),
+	)
+}

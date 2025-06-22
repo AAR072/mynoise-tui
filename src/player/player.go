@@ -2,6 +2,7 @@ package player
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/aar072/mynoise-tui/browser"
 	"github.com/aar072/mynoise-tui/classes"
@@ -42,6 +43,23 @@ func (p *Player) PlayPreset(preset classes.Preset) {
 
 	p.CurrentPreset = preset
 	p.Playing = true
+}
+
+func (p *Player) PlaySound(name string, sliders [10]float64) {
+	if name == "Default" {
+		_ = browser.CallJSFunction("resetSliders()")
+	} else {
+		// Format sliders
+		var sliderStrs []string
+		for _, val := range sliders {
+			sliderStrs = append(sliderStrs, fmt.Sprintf("%.2f", val))
+		}
+
+		// Join sliders and append name
+		js := fmt.Sprintf(`setPreset(%s,"%s");`, strings.Join(sliderStrs, ","), name)
+
+		_ = browser.CallJSFunction(js)
+	}
 }
 
 // Stop ends playback.
