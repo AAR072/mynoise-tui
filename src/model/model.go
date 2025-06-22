@@ -20,6 +20,7 @@ type Model struct {
 	list       list.Model
 	state      string // "list", "detail", or eventually "player"
 	detailItem classes.Preset
+	allSounds  []classes.Sound
 
 	viewMode    string // "all", "categories", "filtered"
 	selectedCat string
@@ -142,6 +143,8 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			m.detailItem = selected
 			m.state = "detail"
 			m.status = "Loading..."
+			// We now need to set the presets to something
+			m.allSounds = scraper.FetchPresetOnclicks(selected.Data.URL)
 			return m, player.PlayPresetCmd(selected)
 		}
 	}
