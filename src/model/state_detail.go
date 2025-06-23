@@ -1,8 +1,6 @@
 package model
 
 import (
-	"time"
-
 	"github.com/aar072/mynoise-tui/classes"
 	"github.com/aar072/mynoise-tui/player"
 	"github.com/aar072/mynoise-tui/prefs"
@@ -40,17 +38,6 @@ func (m *Model) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-	case playbackStatusMsg:
-		m.status = string(msg)
-		if m.status == "Loading..." {
-			return m, tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
-				return checkPlaybackStatusMsg{}
-			})
-		}
-		return m, nil
-
-	case checkPlaybackStatusMsg:
-		return m, m.checkPlaybackStatus()
 	}
 
 	// Handle navigation in soundList

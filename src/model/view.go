@@ -35,6 +35,9 @@ func (m Model) View() string {
 			Render(header + "\n" + m.list.View())
 
 	case "detail":
+		if m.status == "" {
+			m.status = "Playing: Default"
+		}
 		d := m.detailItem
 
 		// Define your custom navigation instructions here, styled dim

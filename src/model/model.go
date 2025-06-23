@@ -109,18 +109,9 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle player-generated messages first
-	switch msg := msg.(type) {
+	switch msg.(type) {
 	case player.PlaybackStartedMsg:
-		m.status = "Playing: " + msg.PresetName
-		return m, nil
-	case player.PlaybackStoppedMsg:
-		m.status = "Stopped"
-		return m, nil
-	case player.VolumeChangedMsg:
-		m.status = fmt.Sprintf("Volume set to %.2f", msg.Volume)
-		return m, nil
-	case player.PresenceChangedMsg:
-		m.status = fmt.Sprintf("Presence set to %.2f", msg.Presence)
+		m.status = "Playing: Default"
 		return m, nil
 	}
 
@@ -145,7 +136,6 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 	} else {
 		if selected, ok := m.list.SelectedItem().(classes.Preset); ok {
 			m.state = "detail"
-			m.status = "Loading..."
 
 			// We now need to set the presets to something
 			m.allSounds = scraper.FetchPresetOnclicks(selected.Data.URL)

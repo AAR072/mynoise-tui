@@ -29,11 +29,13 @@ func New() *Player {
 // PlayPreset begins playback of the given preset.
 // It blocks until `browser.Play` returns.
 func (p *Player) PlayPreset(preset classes.Preset) {
-	// We open the browser
-	err := browser.NavigateTo(preset.Data.URL)
-	// We increment the opencount
 	store.AllPresets[preset.Data.URL].Metadata.OpenCount++
 	store.UserPrefs[preset.Data.URL].OpenCount++
+	// We open the browser
+	p.CurrentPreset = preset
+	p.Playing = true
+	err := browser.NavigateTo(preset.Data.URL)
+	// We increment the opencount
 
 	if err != nil {
 		fmt.Println("Error playing preset:", err)
@@ -41,8 +43,6 @@ func (p *Player) PlayPreset(preset classes.Preset) {
 		return
 	}
 
-	p.CurrentPreset = preset
-	p.Playing = true
 }
 
 func (p *Player) PlaySound(name string, sliders [10]float64) {

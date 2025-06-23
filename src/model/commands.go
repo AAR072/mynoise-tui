@@ -14,11 +14,3 @@ func playPresetCmd(p classes.Preset) tea.Cmd {
 		return checkPlaybackStatusMsg{}
 	}
 }
-func (m *Model) checkPlaybackStatus() tea.Cmd {
-	return func() tea.Msg {
-		if browser.IsLoading() {
-			return playbackStatusMsg("Loading...")
-		}
-		return playbackStatusMsg("Playing")
-	}
-}

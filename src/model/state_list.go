@@ -9,9 +9,6 @@ func (m *Model) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.searchInput.Focused() {
 		switch msg := msg.(type) {
-		case playbackStatusMsg:
-			m.status = string(msg)
-			return m, nil
 		case tea.KeyMsg:
 			switch msg.String() {
 			case "esc":

@@ -57,34 +57,6 @@ func NavigateTo(url string) error {
 	)
 }
 
-func IsLoading() bool {
-	statusMutex.Lock()
-	defer statusMutex.Unlock()
-
-	// Rate limit checks to max once per 500ms
-	if time.Since(lastCheck) < 500*time.Millisecond {
-		return false
-	}
-
-	var status bool
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	chromedp.Run(ctx,
-		chromedp.Evaluate(`
-			(() => {
-				const el = document.querySelector("div.msg#msg");
-				if (!el) return "absent";
-				return el.textContent == "Now Playing...";
-			})()
-		`, &status),
-	)
-
-	lastStatus = status
-	lastCheck = time.Now()
-	return !status
-}
-
 func CallJSFunction(jsCode string) (string, error) {
 	navMutex.Lock()
 	defer navMutex.Unlock()
