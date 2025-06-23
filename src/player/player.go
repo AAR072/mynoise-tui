@@ -47,7 +47,7 @@ func (p *Player) PlayPreset(preset classes.Preset) {
 
 func (p *Player) PlaySound(name string, sliders [10]float64) {
 	if name == "Default" {
-		_ = browser.CallJSFunction("resetSliders()")
+		_, _ = browser.CallJSFunction("resetSliders()")
 	} else {
 		// Format sliders
 		var sliderStrs []string
@@ -58,7 +58,7 @@ func (p *Player) PlaySound(name string, sliders [10]float64) {
 		// Join sliders and append name
 		js := fmt.Sprintf(`setPreset(%s,"%s");`, strings.Join(sliderStrs, ","), name)
 
-		_ = browser.CallJSFunction(js)
+		_, _ = browser.CallJSFunction(js)
 	}
 }
 

@@ -42,7 +42,7 @@ func (m *Model) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case playbackStatusMsg:
 		m.status = string(msg)
-		if m.status != "Playing" {
+		if m.status == "Loading..." {
 			return m, tea.Tick(500*time.Millisecond, func(time.Time) tea.Msg {
 				return checkPlaybackStatusMsg{}
 			})

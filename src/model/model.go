@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aar072/mynoise-tui/classes"
-	"github.com/aar072/mynoise-tui/logger"
 	"github.com/aar072/mynoise-tui/player"
 	"github.com/aar072/mynoise-tui/prefs"
 	"github.com/aar072/mynoise-tui/scraper"
@@ -154,12 +152,13 @@ func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 			slices.SortFunc(m.allSounds, func(a, b classes.Sound) int {
 				return strings.Compare(a.Name, b.Name)
 			})
-			m.allSounds = append([]classes.Sound{classes.DefaultSound}, m.allSounds...)
+			// Now we figure out what the default sound is
+			var defaultSound = scraper.GetDefaultSound(selected.Data.URL)
+			m.allSounds = append([]classes.Sound{defaultSound}, m.allSounds...)
 			items := make([]list.Item, len(m.allSounds))
 			for i, s := range m.allSounds {
 				items[i] = classes.SoundItem{s}
 			}
-			logger.Info(strconv.Itoa(len(items)))
 			m.soundList = list.New(items, list.NewDefaultDelegate(), 40, 20)
 			m.soundList.Title = "Presets"
 			m.soundList.SetShowHelp(false)

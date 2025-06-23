@@ -1,12 +1,15 @@
 package scraper
 
 import (
+	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/aar072/mynoise-tui/classes"
+	"github.com/aar072/mynoise-tui/logger"
 )
 
 func FetchPresetOnclicks(url string) []classes.Sound {
@@ -76,6 +79,85 @@ func FetchPresetOnclicks(url string) []classes.Sound {
 	}
 
 	return sounds
+}
+
+func GetDefaultSound(url string) classes.Sound {
+	res, err := http.Get(url)
+	if err != nil {
+		logger.Error("failed to fetch page: " + err.Error())
+		return classes.Sound{}
+	}
+	defer res.Body.Close()
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		logger.Error("failed to parse HTML: " + err.Error())
+		return classes.Sound{}
+	}
+
+	var sound classes.Sound
+	found := false
+
+	doc.Find("script").EachWithBreak(func(i int, s *goquery.Selection) bool {
+		script := s.Text()
+		if strings.Contains(script, "function resetSliders()") {
+			// Extract resetSliders function body
+			reFunc := regexp.MustCompile(`function resetSliders\s*\(\s*\)\s*\{([\s\S]*?)\}`)
+			matchesFunc := reFunc.FindStringSubmatch(script)
+			if len(matchesFunc) < 2 {
+				logger.Error("failed to extract resetSliders function body")
+				return true
+			}
+
+			resetBody := matchesFunc[1]
+
+			// Extract setPreset call inside resetSliders
+			reSetPreset := regexp.MustCompile(`setPreset\s*\((.*?)\)`)
+			setPresetMatch := reSetPreset.FindStringSubmatch(resetBody)
+			if len(setPresetMatch) < 2 {
+				logger.Error("setPreset call not found inside resetSliders")
+				return true
+			}
+
+			argsStr := setPresetMatch[1]
+			logger.Info("Extracted args string: " + argsStr)
+
+			args := splitIgnoringQuotes(argsStr, ',')
+			logger.Info(fmt.Sprintf("Split args count: %d", len(args)))
+			for i, a := range args {
+				logger.Info(fmt.Sprintf("Arg[%d]: %s", i, a))
+			}
+
+			if len(args) < 10 {
+				logger.Error("expected at least 10 args for sliders, got " + strconv.Itoa(len(args)))
+				return true
+			}
+
+			var sliders [10]float64
+			for i := 0; i < 10; i++ {
+				val, err := strconv.ParseFloat(strings.TrimSpace(args[i]), 64)
+				if err != nil {
+					logger.Error("invalid float in default sound: " + err.Error())
+					return true
+				}
+				sliders[i] = val
+			}
+
+			sound = classes.Sound{
+				Name:    "Default", // hardcoded name
+				Sliders: sliders,
+			}
+			found = true
+			return false // break EachWithBreak
+		}
+		return true
+	})
+
+	if !found {
+		logger.Error("default setPreset(...) not found in page")
+	}
+
+	return sound
 }
 
 func splitIgnoringQuotes(s string, sep rune) []string {
