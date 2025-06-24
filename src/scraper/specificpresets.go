@@ -18,7 +18,11 @@ func FetchPresetOnclicks(url string) []classes.Sound {
 
 	doc, _ := goquery.NewDocumentFromReader(res.Body)
 
-	var onclicks []string
+	type soundData struct {
+		Onclick string
+		Name    string
+	}
+	var soundDatas []soundData
 
 	// Find the h2 with text "Presets"
 	doc.Find("h2").EachWithBreak(func(i int, s *goquery.Selection) bool {
@@ -26,38 +30,41 @@ func FetchPresetOnclicks(url string) []classes.Sound {
 			// Get the next sibling <p>
 			p := s.NextFiltered("p")
 			if p.Length() == 0 {
-				return false // Stop if no <p> sibling
+				return false
 			}
 
-			// Find all <span class="actionlink"> inside that <p>
+			// Collect onclick and inner text from each span
 			p.Find("span.actionlink").Each(func(i int, span *goquery.Selection) {
 				if val, exists := span.Attr("onclick"); exists {
 					if val != "window.location='/login.php'" {
-						onclicks = append(onclicks, val)
+						name := strings.TrimSpace(span.Text())
+						soundDatas = append(soundDatas, soundData{
+							Onclick: val,
+							Name:    name,
+						})
 					}
 				}
 			})
-
-			return false // We found the target <h2>, so stop
+			return false
 		}
-		return true // keep looking
+		return true
 	})
 
 	var sounds []classes.Sound
 
-	for _, oc := range onclicks {
-		oc = strings.TrimPrefix(oc, "setPreset(")
+	for _, data := range soundDatas {
+		oc := strings.TrimPrefix(data.Onclick, "setPreset(")
 		oc = strings.TrimSuffix(oc, ");")
 
 		parts := splitIgnoringQuotes(oc, ',')
 
-		if len(parts) != 11 {
-			continue // Expect 10 sliders + 1 name
+		// Only need 10 slider values, name comes from span text
+		if len(parts) < 10 {
+			continue
 		}
 
 		var sliders [10]float64
 		valid := true
-		// Parse sliders first (parts[0] to parts[9])
 		for i := 0; i < 10; i++ {
 			val, err := strconv.ParseFloat(strings.TrimSpace(parts[i]), 64)
 			if err != nil {
@@ -67,12 +74,9 @@ func FetchPresetOnclicks(url string) []classes.Sound {
 			sliders[i] = val
 		}
 
-		// Name is last part (parts[10])
-		name := strings.Trim(parts[10], " '\"")
-
 		if valid {
 			sounds = append(sounds, classes.Sound{
-				Name:    name,
+				Name:    data.Name, // Use collected span text
 				Sliders: sliders,
 			})
 		}
