@@ -2,7 +2,7 @@ package scraper
 
 import (
 	"fmt"
-	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -10,20 +10,11 @@ import (
 )
 
 func FetchPresets() ([]classes.ScraperPreset, error) {
-	res, err := http.Get("https://mynoise.net/noiseMachines.php")
+	doc, err := fetchDocument("https://mynoise.net/noiseMachines.php")
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
-	}
-
-	doc, err := goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return nil, err
-	}
+	baseURL, _ := url.Parse("https://mynoise.net/noiseMachines.php")
 
 	var presets []classes.ScraperPreset
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
@@ -48,14 +39,23 @@ func FetchPresets() ([]classes.ScraperPreset, error) {
 		}
 
 		if href != "" && text != "" {
-			if strings.HasPrefix(href, "/") {
-				href = "https://mynoise.net" + href
+			target, err := url.Parse(href)
+			if err != nil {
+				return
 			}
+			target = baseURL.ResolveReference(target)
+			if target.Scheme != "https" || target.Host != "mynoise.net" {
+				return
+			}
+			href = target.String()
 			if category != "" {
 				presets = append(presets, classes.ScraperPreset{Title: text, URL: href, Category: category})
 			}
 		}
 	})
 
+	if len(presets) == 0 {
+		return nil, fmt.Errorf("no presets found on myNoise catalog page")
+	}
 	return presets, nil
 }

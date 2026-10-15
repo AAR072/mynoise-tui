@@ -23,19 +23,27 @@ func (m *Model) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		previous := m.searchInput.Value()
 		m.searchInput, cmd = m.searchInput.Update(msg)
-		m.updateListItems()
+		if m.searchInput.Value() != previous {
+			m.updateListItems()
+		}
 		return m, cmd
 	}
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "r":
+			if m.catalogError != nil && !m.catalogLoading {
+				m.catalogLoading = true
+				m.catalogError = nil
+				return m, fetchCatalogCmd
+			}
 		case "enter":
 			return m.handleItemSelection()
 		case "/":
-			m.searchInput.Focus()
-			return m, nil
+			return m, m.searchInput.Focus()
 		case "esc":
 			if m.selectedCat != "" {
 				m.selectedCat = ""

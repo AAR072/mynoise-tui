@@ -1,0 +1,20 @@
+2026/10/15 14:31:15 logger.go:22: [INFO] Extracted args string: ...defaultLevels(
+2026/10/15 14:31:15 logger.go:22: [INFO] Split args count: 1
+2026/10/15 14:31:15 logger.go:22: [INFO] Arg[0]: ...defaultLevels(
+2026/10/15 14:31:15 logger.go:27: [ERROR] expected at least 10 args for sliders, got 1
+2026/10/15 14:31:15 logger.go:27: [ERROR] default setPreset(...) not found in page
+2026/10/15 14:31:22 logger.go:22: [INFO] Extracted args string: ...defaultLevels(
+2026/10/15 14:31:22 logger.go:22: [INFO] Split args count: 1
+2026/10/15 14:31:22 logger.go:22: [INFO] Arg[0]: ...defaultLevels(
+2026/10/15 14:31:22 logger.go:27: [ERROR] expected at least 10 args for sliders, got 1
+2026/10/15 14:31:22 logger.go:27: [ERROR] default setPreset(...) not found in page
+2026/10/15 14:32:03 logger.go:22: [INFO] Extracted args string: ...defaultLevels(
+2026/10/15 14:32:03 logger.go:22: [INFO] Split args count: 1
+2026/10/15 14:32:03 logger.go:22: [INFO] Arg[0]: ...defaultLevels(
+2026/10/15 14:32:03 logger.go:27: [ERROR] expected at least 10 args for sliders, got 1
+2026/10/15 14:32:03 logger.go:27: [ERROR] default setPreset(...) not found in page
+2026/10/15 14:32:33 logger.go:22: [INFO] Extracted args string: ...defaultLevels(
+2026/10/15 14:32:33 logger.go:22: [INFO] Split args count: 1
+2026/10/15 14:32:33 logger.go:22: [INFO] Arg[0]: ...defaultLevels(
+2026/10/15 14:32:33 logger.go:27: [ERROR] expected at least 10 args for sliders, got 1
+2026/10/15 14:32:33 logger.go:27: [ERROR] default setPreset(...) not found in page

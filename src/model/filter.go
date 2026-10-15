@@ -40,7 +40,10 @@ func (m *Model) filterPresets() []classes.Preset {
 		}
 
 		// Otherwise, sort alphabetically by title
-		return strings.Compare(a.Data.Title, b.Data.Title)
+		if order := strings.Compare(a.Data.Title, b.Data.Title); order != 0 {
+			return order
+		}
+		return strings.Compare(a.Data.URL, b.Data.URL)
 	})
 	return filtered
 }

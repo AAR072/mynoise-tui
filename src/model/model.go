@@ -2,15 +2,10 @@ package model
 
 import (
 	"fmt"
-	"os"
-	"slices"
 	"strings"
-	"time"
 
 	"github.com/aar072/mynoise-tui/classes"
-	"github.com/aar072/mynoise-tui/player"
 	"github.com/aar072/mynoise-tui/prefs"
-	"github.com/aar072/mynoise-tui/scraper"
 	"github.com/aar072/mynoise-tui/store"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -18,150 +13,178 @@ import (
 )
 
 type Model struct {
-	list          list.Model
-	state         string // "list", "detail", or eventually "player"
-	detailItem    classes.Preset
-	allSounds     []classes.Sound
-	selectedSound *classes.Sound
-	soundList     list.Model
-
-	viewMode    string // "all", "categories", "filtered"
-	selectedCat string
-	searchInput textinput.Model
-	categories  []string
-	allPresets  map[string]*classes.Preset
-
-	status string // Current status ("Loading...", "Playing", etc.)
+	list           list.Model
+	soundList      list.Model
+	state          string
+	detailItem     classes.Preset
+	viewMode       string
+	selectedCat    string
+	searchInput    textinput.Model
+	categories     []string
+	status         string
+	catalogLoading bool
+	catalogError   error
+	soundCache     map[string][]classes.Sound
+	soundLoading   map[string]bool
+	soundErrors    map[string]error
+	requestedURL   string
+	pendingPreset  *classes.Preset
+	playbackBusy   bool
+	playingURL     string
+	playbackStatus string
+	width, height  int
 }
 
 func NewModel() Model {
-	done := make(chan struct{})
-	go func() {
-		spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-		i := 0
-		for {
-			select {
-			case <-done:
-				return
-			default:
-				fmt.Printf("\r%s Loading Sounds...", spinner[i%len(spinner)])
-				i++
-				time.Sleep(100 * time.Millisecond)
-			}
-		}
-	}()
-
-	presetsFromWeb, err := scraper.FetchPresets()
-
-	var items []list.Item
-	store.AllPresets = make(map[string]*classes.Preset)
-	for _, p := range presetsFromWeb {
-		key := p.URL // or whatever unique string key exists
-
-		presetCopy := classes.Preset{Data: p}
-		store.AllPresets[key] = &presetCopy // store pointer to value
-
-		items = append(items, presetCopy) // append value to slice
-	}
-
-	// Now we update the user preferences
-	prefs.UpdatePreferences()
-	prefs.SavePreferences()
-
-	close(done)
-	if err != nil {
-		fmt.Println("Error fetching presets:", err)
-		os.Exit(1)
-	}
-
-	categories := uniqueCategories(presetsFromWeb)
-
-	const width, height = 80, 20
-	l := list.New(items, list.NewDefaultDelegate(), width, height)
-	l.Title = "myNoise Presets"
+	l := list.New(nil, list.NewDefaultDelegate(), 76, 16)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
-
 	ti := textinput.New()
-	ti.Placeholder = "Search..."
-	ti.Prompt = "> "
-	ti.CharLimit = 50
-	ti.Width = 30
-
+	ti.Placeholder, ti.Prompt, ti.CharLimit, ti.Width = "Search...", "> ", 50, 30
 	m := Model{
-		list:          l,
-		state:         "list",
-		viewMode:      "all",
-		categories:    categories,
-		allPresets:    store.AllPresets,
-		selectedSound: &classes.DefaultSound,
-		searchInput:   ti,
-		status:        "",
+		list: l, state: "list", viewMode: "all", searchInput: ti,
+		catalogLoading: true, soundCache: make(map[string][]classes.Sound),
+		soundLoading: make(map[string]bool), soundErrors: make(map[string]error),
+		width: 80, height: 24,
 	}
-
-	m.updateListItems()
+	m.setSounds(nil)
 	return m
 }
 
-func (m Model) Init() tea.Cmd {
-	return nil
-}
+func (m Model) Init() tea.Cmd { return fetchCatalogCmd }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Handle player-generated messages first
-	switch msg.(type) {
-	case player.PlaybackStartedMsg:
-		m.status = "Playing: Default"
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		m.list.SetSize(max(1, msg.Width-4), max(1, msg.Height-7))
+		m.soundList.SetSize(max(1, msg.Width-4), max(1, msg.Height-15))
+		return m, nil
+	case catalogMsg:
+		m.catalogLoading, m.catalogError = false, msg.err
+		if msg.err != nil {
+			return m, nil
+		}
+		store.AllPresets = make(map[string]*classes.Preset)
+		for _, p := range msg.presets {
+			store.AllPresets[p.URL] = &classes.Preset{Data: p}
+		}
+		prefs.UpdatePreferences()
+		m.categories = uniqueCategories(msg.presets)
+		m.updateListItems()
+		return m, nil
+	case soundsMsg:
+		delete(m.soundLoading, msg.url)
+		m.soundErrors[msg.url] = msg.err
+		if msg.err == nil {
+			m.soundCache[msg.url] = msg.sounds
+		}
+		if m.detailItem.Data.URL == msg.url {
+			m.setSounds(m.soundCache[msg.url])
+		}
+		return m, nil
+	case playbackMsg:
+		m.playbackBusy = false
+		if msg.err != nil {
+			m.playingURL = ""
+			m.playbackStatus = "Playback error: " + msg.err.Error()
+		} else {
+			m.playingURL = msg.url
+			m.playbackStatus = "Playing: " + msg.name
+			if msg.generator {
+				if err := prefs.RecordPlayback(msg.url); err != nil {
+					m.playbackStatus += " (preferences not saved: " + err.Error() + ")"
+				}
+				// Refresh copied list metadata without moving the current selection.
+				index := m.list.Index()
+				m.updateListItems()
+				m.list.Select(index)
+			}
+		}
+		if m.detailItem.Data.URL == msg.url {
+			m.status = m.playbackStatus
+		}
+		if pending := m.pendingPreset; pending != nil {
+			m.pendingPreset = nil
+			if pending.Data.URL != m.playingURL {
+				m.playbackBusy = true
+				m.requestedURL = pending.Data.URL
+				if m.detailItem.Data.URL == pending.Data.URL {
+					m.status = "Loading playback..."
+				}
+				return m, playPresetCmd(*pending)
+			}
+			if m.detailItem.Data.URL == pending.Data.URL {
+				m.status = m.playbackStatus
+			}
+		}
 		return m, nil
 	}
-
-	// Fallback to UI state handlers
 	switch m.state {
 	case "list":
 		return m.handleListUpdate(msg)
 	case "detail":
 		return m.handleDetailUpdate(msg)
 	}
-
 	return m, nil
+}
+
+func (m *Model) setSounds(sounds []classes.Sound) {
+	items := make([]list.Item, len(sounds))
+	for i, sound := range sounds {
+		items[i] = classes.SoundItem{Sound: sound}
+	}
+	m.soundList = list.New(items, list.NewDefaultDelegate(), max(1, m.width-4), max(1, m.height-15))
+	m.soundList.Title = "Sounds"
+	m.soundList.SetShowHelp(false)
+	m.soundList.SetFilteringEnabled(false)
+}
+
+func (m *Model) startPlayback() tea.Cmd {
+	if m.playbackBusy {
+		m.pendingPreset = nil
+		if m.detailItem.Data.URL != m.requestedURL {
+			selected := m.detailItem
+			m.pendingPreset = &selected
+		}
+		m.status = "Loading playback..."
+		return nil
+	}
+	if m.playingURL == m.detailItem.Data.URL {
+		m.status = m.playbackStatus
+		return nil
+	}
+	m.playbackBusy = true
+	m.requestedURL = m.detailItem.Data.URL
+	m.status = "Loading playback..."
+	return playPresetCmd(m.detailItem)
 }
 
 func (m *Model) handleItemSelection() (tea.Model, tea.Cmd) {
 	if m.viewMode == "categories" {
 		if selected, ok := m.list.SelectedItem().(categoryItem); ok {
-			m.selectedCat = selected.name
-			m.viewMode = "filtered"
+			m.selectedCat, m.viewMode = selected.name, "filtered"
 			m.updateListItems()
 		}
-	} else {
-		if selected, ok := m.list.SelectedItem().(classes.Preset); ok {
-			m.state = "detail"
-
-			// We now need to set the presets to something
-			m.allSounds = scraper.FetchPresetOnclicks(selected.Data.URL)
-			slices.SortFunc(m.allSounds, func(a, b classes.Sound) int {
-				return strings.Compare(a.Name, b.Name)
-			})
-			// Now we figure out what the default sound is
-			var defaultSound = scraper.GetDefaultSound(selected.Data.URL)
-			m.allSounds = append([]classes.Sound{defaultSound}, m.allSounds...)
-			items := make([]list.Item, len(m.allSounds))
-			for i, s := range m.allSounds {
-				items[i] = classes.SoundItem{s}
-			}
-			m.soundList = list.New(items, list.NewDefaultDelegate(), 40, 20)
-			m.soundList.Title = "Presets"
-			m.soundList.SetShowHelp(false)
-
-			// If we are already playing this, we do not want to replay it
-			if m.detailItem.Data.Title != selected.Title() {
-				m.detailItem = selected
-				return m, player.PlayPresetCmd(selected)
-			}
-			return m, nil
-		}
+		return m, nil
 	}
-	return m, nil
+	selected, ok := m.list.SelectedItem().(classes.Preset)
+	if !ok {
+		return m, nil
+	}
+	m.state, m.detailItem = "detail", selected
+	m.setSounds(m.soundCache[selected.Data.URL])
+	var fetch tea.Cmd
+	if _, cached := m.soundCache[selected.Data.URL]; !cached && !m.soundLoading[selected.Data.URL] {
+		m.soundLoading[selected.Data.URL] = true
+		delete(m.soundErrors, selected.Data.URL)
+		fetch = fetchSoundsCmd(selected.Data.URL)
+	}
+	return m, tea.Batch(fetch, m.startPlayback())
 }
 
 func (m *Model) updateListItems() {

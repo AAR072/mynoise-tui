@@ -2,53 +2,82 @@ package prefs
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/aar072/mynoise-tui/classes"
 	"github.com/aar072/mynoise-tui/store"
 )
 
 func UpdatePreferences() {
-	for _, presetElement := range store.AllPresets {
-		// If the preset does not exist
-		if _, exists := store.UserPrefs[presetElement.Data.URL]; !exists {
-			store.UserPrefs[presetElement.Data.URL] = &classes.PresetMeta{
-				OpenCount:  0,
-				IsFavorite: false,
-			}
+	if store.UserPrefs == nil {
+		store.UserPrefs = make(classes.UserPrefs)
+	}
+	for key, preset := range store.AllPresets {
+		if store.UserPrefs[key] == nil {
+			store.UserPrefs[key] = &classes.PresetMeta{}
 		}
-		store.AllPresets[presetElement.Data.URL].Metadata = *store.UserPrefs[presetElement.Data.URL]
+		preset.Metadata = *store.UserPrefs[key]
 	}
 }
 
-// SavePreferences saves the UserPrefs map to the JSON config file.
+// SavePreferences replaces the file atomically, preserving the old file on failure.
+// All preference access is owned by the Bubble Tea update loop.
 func SavePreferences() error {
 	path, err := getConfigPath()
 	if err != nil {
 		return err
 	}
+	return savePreferences(path)
+}
 
-	// Marshal store.UserPrefs to pretty JSON
+func savePreferences(path string) error {
 	data, err := json.MarshalIndent(store.UserPrefs, "", "  ")
 	if err != nil {
 		return err
 	}
-
-	// Write JSON data to file (overwrite)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
 	}
-
-	return nil
+	file, err := os.CreateTemp(filepath.Dir(path), ".user_prefs-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(file.Name())
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return os.Rename(file.Name(), path)
 }
 
-func FavouritePreset(selectedPreset *classes.Preset) error {
-	// Flip the favorite status of the preset in the global store
-	newFav := !selectedPreset.Metadata.IsFavorite
-	store.UserPrefs[selectedPreset.Data.URL].IsFavorite = newFav
-	store.AllPresets[selectedPreset.Data.URL].Metadata.IsFavorite = newFav
+func FavouritePreset(selected *classes.Preset) error {
+	preset := store.AllPresets[selected.Data.URL]
+	meta := store.UserPrefs[selected.Data.URL]
+	if preset == nil || meta == nil {
+		return fmt.Errorf("unknown preset: %s", selected.Data.URL)
+	}
+	meta.IsFavorite = !meta.IsFavorite
+	preset.Metadata = *meta
+	selected.Metadata = *meta
+	return SavePreferences()
+}
 
-	// Update the selectedPreset itself so caller sees the change
-	selectedPreset.Metadata.IsFavorite = newFav
-	return nil
+func RecordPlayback(url string) error {
+	preset := store.AllPresets[url]
+	meta := store.UserPrefs[url]
+	if preset == nil || meta == nil {
+		return fmt.Errorf("unknown preset: %s", url)
+	}
+	meta.OpenCount++
+	preset.Metadata = *meta
+	return SavePreferences()
 }

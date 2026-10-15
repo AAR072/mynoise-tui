@@ -1,7 +1,9 @@
 package main
 
 import (
-	"log"
+	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,28 +14,24 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+func run() error {
+	if err := prefs.InitConfig(); err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	defer browser.ShutdownBrowser()
+	p := tea.NewProgram(model.NewModel(), tea.WithAltScreen(), tea.WithContext(ctx))
+	_, runErr := p.Run()
+	if errors.Is(runErr, tea.ErrProgramKilled) && ctx.Err() != nil {
+		runErr = nil
+	}
+	return errors.Join(runErr, prefs.SavePreferences())
+}
+
 func main() {
-	// Setup browser
-	err := browser.InitBrowser()
-	if err != nil {
-		log.Fatal(err)
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	defer browser.ShutdownBrowser() // Ensure browser closes on exit
-
-	// Handle OS signals for proper cleanup
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		browser.ShutdownBrowser()
-		os.Exit(0)
-	}()
-
-	// Start TUI
-	_ = prefs.InitConfig()
-	p := tea.NewProgram(model.NewModel(), tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
-		log.Fatal(err)
-	}
-	prefs.SavePreferences()
 }

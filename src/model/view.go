@@ -11,6 +11,12 @@ import (
 func (m Model) View() string {
 	switch m.state {
 	case "list":
+		if m.catalogLoading {
+			return "Loading myNoise presets...\nPress ctrl+c to quit."
+		}
+		if m.catalogError != nil {
+			return "Could not load presets: " + m.catalogError.Error() + "\nPress r to retry or ctrl+c to quit."
+		}
 		header := lipgloss.NewStyle().
 			Bold(true).
 			MarginBottom(1).
@@ -35,13 +41,10 @@ func (m Model) View() string {
 			Render(header + "\n" + m.list.View())
 
 	case "detail":
-		if m.status == "" {
-			m.status = "Playing: Default"
-		}
 		d := m.detailItem
 
 		// Define your custom navigation instructions here, styled dim
-		navInstructions := lipgloss.NewStyle().Faint(true).Render("↑/k up • ↓/j down • q quit • f favourite")
+		navInstructions := lipgloss.NewStyle().Faint(true).Render("↑/k up • ↓/j down • q back • f favourite • r retry • enter play")
 
 		detailText := fmt.Sprintf(
 			"Title: %s\nCategory: %s\nURL: %s\n%s\nListen Count: %s\nFavourited: %s\n\n%s\n\n%s",
@@ -55,6 +58,12 @@ func (m Model) View() string {
 			m.soundList.View(),
 		)
 
+		if m.soundLoading[d.Data.URL] {
+			detailText += "\nLoading sounds..."
+		}
+		if err := m.soundErrors[d.Data.URL]; err != nil {
+			detailText += "\nCould not load sounds: " + err.Error() + " (r to retry)"
+		}
 		return lipgloss.NewStyle().
 			Margin(1, 2).
 			Render(detailText)
